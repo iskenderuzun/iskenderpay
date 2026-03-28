@@ -27,16 +27,19 @@ const _fbDb   = getFirestore(_fbApp);
 let   _fbUid  = null;
 window._fbUid = null;
 
+// Aktif plan (plan1 veya plan2)
+let _planId = localStorage.getItem('v6-active-plan') || 'plan1';
+
 // Firebase'e veri kaydet
 window._fbSave = async function(encData) {
   if (!_fbUid) return;
-  await setDoc(doc(_fbDb, 'users', _fbUid), { data: encData, updatedAt: Date.now() }, { merge: true });
+  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId), { data: encData, updatedAt: Date.now() }, { merge: true });
 };
 
 // Firebase'den veri yükle
 window._fbLoad = async function() {
   if (!_fbUid) return null;
-  const snap = await getDoc(doc(_fbDb, 'users', _fbUid));
+  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId));
   return snap.exists() ? snap.data().data : null;
 };
 
@@ -45,13 +48,13 @@ window._fbSaveSalt = async function(saltKey, saltVal) {
   if (!_fbUid) return;
   const update = {};
   update['salts.' + saltKey] = saltVal;
-  await setDoc(doc(_fbDb, 'users', _fbUid), update, { merge: true });
+  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId), update, { merge: true });
 };
 
 // Firebase'den salt yükle
 window._fbLoadSalt = async function(saltKey) {
   if (!_fbUid) return null;
-  const snap = await getDoc(doc(_fbDb, 'users', _fbUid));
+  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId));
   if (!snap.exists()) return null;
   const salts = snap.data().salts || {};
   return salts[saltKey] || null;
@@ -60,13 +63,13 @@ window._fbLoadSalt = async function(saltKey) {
 // Firebase'e PIN hash kaydet
 window._fbSavePinHash = async function(hash) {
   if (!_fbUid) return;
-  await setDoc(doc(_fbDb, 'users', _fbUid), { pinHash: hash }, { merge: true });
+  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId), { pinHash: hash }, { merge: true });
 };
 
 // Firebase'den PIN hash yükle
 window._fbLoadPinHash = async function() {
   if (!_fbUid) return null;
-  const snap = await getDoc(doc(_fbDb, 'users', _fbUid));
+  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId));
   return snap.exists() ? (snap.data().pinHash || null) : null;
 };
 
@@ -96,9 +99,12 @@ onAuthStateChanged(_fbAuth, (user) => {
     _fbUid = user.uid;
     window._fbUid = user.uid;
     if (glsEl) glsEl.style.display = 'none';
-    if (psEl)  { psEl.style.display = ''; psEl.classList.add('active'); }
-    const nameEl = document.getElementById('GL_NAME');
-    if (nameEl) nameEl.textContent = user.displayName || user.email;
+    // Plan seçim ekranını göster
+    const plsEl = document.getElementById('PLS');
+    const plsUser = document.getElementById('PLS_USER');
+    if (plsUser) plsUser.textContent = '👤 ' + (user.displayName || user.email);
+    if (plsEl) plsEl.style.display = 'flex';
+    if (psEl)  { psEl.style.display = 'none'; psEl.classList.remove('active'); }
   } else {
     _fbUid = null;
     window._fbUid = null;
@@ -106,6 +112,8 @@ onAuthStateChanged(_fbAuth, (user) => {
     setTimeout(() => {
       if (!_fbUid) {
         if (glsEl) glsEl.style.display = 'flex';
+        const plsEl = document.getElementById('PLS');
+        if (plsEl) plsEl.style.display = 'none';
         if (psEl)  { psEl.style.display = 'none'; psEl.classList.remove('active'); }
         if (appEl) appEl.style.display = 'none';
       }
@@ -158,6 +166,21 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .gls-btn:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,0,0,.4)}
 .gls-btn:active{transform:scale(.97)}
 .gls-btn svg{width:22px;height:22px;flex-shrink:0}
+
+/* PLAN SEÇİM */
+.pls{position:fixed;inset:0;background:var(--bg);z-index:998;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.pls-title{font-size:20px;font-weight:700;margin-bottom:6px;text-align:center}
+.pls-title span{color:var(--acc)}
+.pls-sub{font-size:12px;color:var(--muted);margin-bottom:28px;text-align:center}
+.pls-cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px}
+.pls-card{background:var(--surf);border:2px solid var(--bdr);border-radius:16px;padding:18px 20px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:14px}
+.pls-card:hover{border-color:var(--acc);background:var(--surf2)}
+.pls-card:active{transform:scale(.97)}
+.pls-card-ico{font-size:28px;flex-shrink:0}
+.pls-card-name{font-size:15px;font-weight:700}
+.pls-card-desc{font-size:11px;color:var(--muted);margin-top:2px}
+.pls-user{font-size:12px;color:var(--muted);margin-bottom:20px;display:flex;align-items:center;gap:6px}
+.pls-signout{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;margin-top:16px;text-decoration:underline}
 
 /* PIN */
 .pin-screen{position:fixed;inset:0;background:var(--bg);z-index:999;flex-direction:column;align-items:center;justify-content:center;padding:24px}
@@ -370,6 +393,31 @@ select.fi{appearance:none}
   </button>
 </div>
 
+<!-- PLAN SEÇİM -->
+<div class="pls" id="PLS">
+  <div class="gls-logo">💳</div>
+  <div class="pls-title">Ödeme <span>Takvimi</span></div>
+  <div class="pls-sub">Hangi planı açmak istiyorsunuz?</div>
+  <div class="pls-user" id="PLS_USER"></div>
+  <div class="pls-cards">
+    <div class="pls-card" onclick="selectPlan('plan1')">
+      <div class="pls-card-ico">📋</div>
+      <div>
+        <div class="pls-card-name">Plan 1</div>
+        <div class="pls-card-desc">Birinci ödeme planınız</div>
+      </div>
+    </div>
+    <div class="pls-card" onclick="selectPlan('plan2')">
+      <div class="pls-card-ico">📊</div>
+      <div>
+        <div class="pls-card-name">Plan 2</div>
+        <div class="pls-card-desc">İkinci ödeme planınız</div>
+      </div>
+    </div>
+  </div>
+  <button class="pls-signout" onclick="doGoogleSignOut()">Çıkış Yap</button>
+</div>
+
 <!-- PIN -->
 <div class="pin-screen" id="PS" style="display:none">
   <div class="pin-logo">🔐</div>
@@ -394,7 +442,8 @@ select.fi{appearance:none}
       <button class="stab" id="s3" onclick="go(3)">📝 Notlar</button>
       <button class="stab" id="s4" onclick="go(4)">🗃 Geçmiş</button>
       <button class="stab" id="s5" onclick="go(5)">⚙️ Ayarlar</button>
-      <button class="stab" onclick="doGoogleSignOut()" style="margin-top:auto;color:var(--danger)">🚪 Çıkış</button>
+      <button class="stab" onclick="switchPlan()" style="margin-top:auto;color:var(--acc2)" id="PLANBTN">🔄 Plan Değiştir</button>
+      <button class="stab" onclick="doGoogleSignOut()" style="color:var(--danger)">🚪 Çıkış</button>
     </nav>
   </div>
   <div class="content">
@@ -811,8 +860,30 @@ function showPinErr(msg) {
   setTimeout(() => { inp.classList.remove('err'); document.getElementById('PE').textContent=''; inp.value=''; }, 2000);
 }
 
+function selectPlan(planId) {
+  _planId = planId;
+  localStorage.setItem('v6-active-plan', planId);
+  // Sıfırla
+  pays=[]; creds=[]; hist=[]; persons=[]; notes=[];
+  _cryptoKey = null;
+  _plainPin = '';
+  // Plan seçim ekranını kapat, PIN ekranını aç
+  document.getElementById('PLS').style.display = 'none';
+  const psEl = document.getElementById('PS');
+  psEl.style.display = '';
+  psEl.classList.add('active');
+  // Plan adını PIN başlığında göster
+  const planName = planId === 'plan1' ? 'Plan 1' : 'Plan 2';
+  const subEl = document.querySelector('.pin-sub');
+  if (subEl) subEl.textContent = planName + ' şifresini girin';
+  // PIN inputunu temizle
+  const pi = document.getElementById('PI');
+  if (pi) pi.value = '';
+}
+
 function enterApp() {
-  document.getElementById('PS').classList.add('hidden');
+  document.getElementById('PS').classList.remove('active');
+  document.getElementById('PS').style.display = 'none';
   document.getElementById('APP').style.display = '';
   initApp();
 }
@@ -1776,10 +1847,20 @@ function exportExcel(){
   URL.revokeObjectURL(url);
 }
 
+function switchPlan() {
+  if (!confirm('Plan değiştirilecek. Mevcut plan kaydedildi.')) return;
+  document.getElementById('APP').style.display = 'none';
+  document.getElementById('PLS').style.display = 'flex';
+}
+
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function initApp(){
   const ah=localStorage.getItem('v5-ahead')||'6';
   document.getElementById('AH').value=ah;
+  // Plan adını sidebar'da göster
+  const planName = _planId === 'plan1' ? 'Plan 1' : 'Plan 2';
+  const planBtn = document.getElementById('PLANBTN');
+  if (planBtn) planBtn.textContent = '🔄 ' + planName + ' › Değiştir';
   migrateCredDates();
   go(0);
   fetchRates();
