@@ -28,18 +28,18 @@ let   _fbUid  = null;
 window._fbUid = null;
 
 // Aktif plan (plan1 veya plan2)
-let _planId = localStorage.getItem('v6-active-plan') || 'plan1';
+window._planId = localStorage.getItem('v6-active-plan') || 'plan1';
 
 // Firebase'e veri kaydet
 window._fbSave = async function(encData) {
   if (!_fbUid) return;
-  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId), { data: encData, updatedAt: Date.now() }, { merge: true });
+  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + window._planId), { data: encData, updatedAt: Date.now() }, { merge: true });
 };
 
 // Firebase'den veri yükle
 window._fbLoad = async function() {
   if (!_fbUid) return null;
-  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId));
+  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + window._planId));
   return snap.exists() ? snap.data().data : null;
 };
 
@@ -48,13 +48,13 @@ window._fbSaveSalt = async function(saltKey, saltVal) {
   if (!_fbUid) return;
   const update = {};
   update['salts.' + saltKey] = saltVal;
-  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId), update, { merge: true });
+  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + window._planId), update, { merge: true });
 };
 
 // Firebase'den salt yükle
 window._fbLoadSalt = async function(saltKey) {
   if (!_fbUid) return null;
-  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId));
+  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + window._planId));
   if (!snap.exists()) return null;
   const salts = snap.data().salts || {};
   return salts[saltKey] || null;
@@ -63,13 +63,13 @@ window._fbLoadSalt = async function(saltKey) {
 // Firebase'e PIN hash kaydet
 window._fbSavePinHash = async function(hash) {
   if (!_fbUid) return;
-  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId), { pinHash: hash }, { merge: true });
+  await setDoc(doc(_fbDb, 'users', _fbUid + '_' + window._planId), { pinHash: hash }, { merge: true });
 };
 
 // Firebase'den PIN hash yükle
 window._fbLoadPinHash = async function() {
   if (!_fbUid) return null;
-  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + _planId));
+  const snap = await getDoc(doc(_fbDb, 'users', _fbUid + '_' + window._planId));
   return snap.exists() ? (snap.data().pinHash || null) : null;
 };
 
@@ -861,7 +861,7 @@ function showPinErr(msg) {
 }
 
 function selectPlan(planId) {
-  _planId = planId;
+  window._planId = planId;
   localStorage.setItem('v6-active-plan', planId);
   // Sıfırla
   pays=[]; creds=[]; hist=[]; persons=[]; notes=[];
@@ -873,7 +873,7 @@ function selectPlan(planId) {
   psEl.style.display = '';
   psEl.classList.add('active');
   // Plan adını PIN başlığında göster
-  const planName = planId === 'plan1' ? 'Plan 1' : 'Plan 2';
+  const planName = window._planId === 'plan1' ? 'Plan 1' : 'Plan 2';
   const subEl = document.querySelector('.pin-sub');
   if (subEl) subEl.textContent = planName + ' şifresini girin';
   // PIN inputunu temizle
@@ -1858,7 +1858,7 @@ function initApp(){
   const ah=localStorage.getItem('v5-ahead')||'6';
   document.getElementById('AH').value=ah;
   // Plan adını sidebar'da göster
-  const planName = _planId === 'plan1' ? 'Plan 1' : 'Plan 2';
+  const planName = window._planId === 'plan1' ? 'Plan 1' : 'Plan 2';
   const planBtn = document.getElementById('PLANBTN');
   if (planBtn) planBtn.textContent = '🔄 ' + planName + ' › Değiştir';
   migrateCredDates();
