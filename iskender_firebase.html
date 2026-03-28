@@ -25,6 +25,7 @@ const _fbApp  = initializeApp(firebaseConfig);
 const _fbAuth = getAuth(_fbApp);
 const _fbDb   = getFirestore(_fbApp);
 let   _fbUid  = null;
+window._fbUid = null;
 
 // Firebase'e veri kaydet
 window._fbSave = async function(encData) {
@@ -93,12 +94,14 @@ onAuthStateChanged(_fbAuth, (user) => {
 
   if (user) {
     _fbUid = user.uid;
+    window._fbUid = user.uid;
     if (glsEl) glsEl.style.display = 'none';
     if (psEl)  { psEl.style.display = ''; psEl.classList.add('active'); }
     const nameEl = document.getElementById('GL_NAME');
     if (nameEl) nameEl.textContent = user.displayName || user.email;
   } else {
     _fbUid = null;
+    window._fbUid = null;
     // Redirect kontrol edilmeden Google ekranını gösterme
     setTimeout(() => {
       if (!_fbUid) {
