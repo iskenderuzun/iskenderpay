@@ -62,16 +62,25 @@ onAuthStateChanged(_fbAuth, (user) => {
   }
 });
 
-// Redirect sonucunu kontrol et (mobil geri dönüşü)
-getRedirectResult(_fbAuth).catch(e => console.warn('redirect result:', e));
+// Redirect sonucunu kontrol et
+getRedirectResult(_fbAuth).then((result) => {
+  if (result && result.user) {
+    console.log('Redirect ile giriş başarılı:', result.user.email);
+  }
+}).catch(e => console.warn('redirect result error:', e));
 
-// Google ile giriş — her zaman redirect kullan
+// Google ile giriş — popup kullan
 window.doGoogleLogin = async function() {
   try {
     const provider = new GoogleAuthProvider();
-    await signInWithRedirect(_fbAuth, provider);
+    await signInWithPopup(_fbAuth, provider);
   } catch(e) {
-    alert('Giriş başarısız: ' + e.message);
+    // Popup engellenirse redirect dene
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user') {
+      try { await signInWithRedirect(_fbAuth, provider); } catch(e2) { alert('Giriş başarısız: ' + e2.message); }
+    } else {
+      alert('Giriş başarısız: ' + e.message);
+    }
   }
 };
 
