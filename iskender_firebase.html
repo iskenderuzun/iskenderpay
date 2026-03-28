@@ -649,40 +649,21 @@ async function hashPin(pin, salt) {
 }
 
 async function getSaltAsync(key) {
-  const uid = (window._fbUid || '');
-  const scopedKey = uid ? key + '-' + uid.slice(0,8) : key;
-
-  // Önce Firebase'den dene
-  if (window._fbLoadSalt) {
-    try {
-      const fbSalt = await window._fbLoadSalt(scopedKey);
-      if (fbSalt) {
-        localStorage.setItem(scopedKey, fbSalt);
-        return Uint8Array.from(atob(fbSalt), c => c.charCodeAt(0));
-      }
-    } catch(e) {}
+  const uid = _fbUid || '';
+  if (uid) {
+    // UID'yi salt olarak kullan — her cihazda aynı sonucu verir
+    const enc = new TextEncoder();
+    const keyMat = await crypto.subtle.importKey('raw', enc.encode(uid + key), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode('iskenderpay-v6'), iterations: 10000, hash: 'SHA-256' }, keyMat, 128);
+    return new Uint8Array(bits);
   }
-
-  // Firebase'de yoksa localStorage'a bak
-  let s = localStorage.getItem(scopedKey) || localStorage.getItem(key);
-  if (!s) {
-    const arr = crypto.getRandomValues(new Uint8Array(16));
-    s = btoa(String.fromCharCode(...arr));
-    localStorage.setItem(scopedKey, s);
-    // Firebase'e de kaydet
-    if (window._fbSaveSalt) {
-      try { await window._fbSaveSalt(scopedKey, s); } catch(e) {}
-    }
-  }
-  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  // UID yoksa localStorage'a düş
+  return getSalt(key);
 }
 
 function getSalt(key) {
-  // Senkron fallback — async versiyonu kullanın
-  const uid = (window._fbUid || '');
-  const scopedKey = uid ? key + '-' + uid.slice(0,8) : key;
-  let s = localStorage.getItem(scopedKey) || localStorage.getItem(key);
-  if (!s) { const arr = crypto.getRandomValues(new Uint8Array(16)); s = btoa(String.fromCharCode(...arr)); localStorage.setItem(scopedKey, s); }
+  let s = localStorage.getItem(key);
+  if (!s) { const arr = crypto.getRandomValues(new Uint8Array(16)); s = btoa(String.fromCharCode(...arr)); localStorage.setItem(key, s); }
   return Uint8Array.from(atob(s), c => c.charCodeAt(0));
 }
 
