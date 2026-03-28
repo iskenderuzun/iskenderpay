@@ -1324,6 +1324,11 @@ function openCell(keyEnc,month){
     ${orig&&rates[orig.currency]?`<div style="font-size:10px;color:var(--muted);margin-top:5px">1 ${orig.currency==='EUR'?'EUR':'gr'} = ${orig.currency==='EUR'?fmt(rates.EUR):fmt(rates.GOLD)}</div>`:''}
   </div>`;
   const cellKey=encodeURIComponent(key),cellMo=month;
+  // Manuel eklenen ay kaydı mı kontrol et
+  const isManual=c.items.length===1&&c.items[0].rp&&!c.items[0].rec;
+  const delBtn=isManual
+    ?`<button class="dact da-del" onclick="delMonthEntry('${encodeURIComponent(String(c.items[0].id))}')">Sil</button>`
+    :`<button class="dact da-del" onclick="delByKey('${cellKey}')">Sil</button>`;
   h+=`<div class="dacts">
     ${s!=='paid'?`<button class="dact da-ok" onclick="markOk('${cellKey}','${cellMo}')">✓ Ödendi</button>`:''}
     ${s==='partial'?`<button class="dact da-part" onclick="resetPartial('${cellKey}','${cellMo}')">↺ Sıfırla</button>`:''}
@@ -1331,7 +1336,7 @@ function openCell(keyEnc,month){
     ${s==='partial'?`<button class="dact da-part" onclick="openKM('${cellKey}','${cellMo}')">+ Ekle</button>`:''}
     ${(s==='paid'||s==='partial')?`<button class="dact da-undo" onclick="undoCell('${cellKey}','${cellMo}')">↩ Geri Al</button>`:''}
     <button class="dact da-edit" onclick="editByKey('${cellKey}')">Düzenle</button>
-    <button class="dact da-del" onclick="delByKey('${cellKey}')">Sil</button>
+    ${delBtn}
     <button class="dact da-close" onclick="closeDV()">Kapat</button>
   </div>`;
   document.getElementById('DC').innerHTML=h;
@@ -1608,9 +1613,29 @@ function renderHist(){
     <div class="hi">
       <div class="hi-inf"><div class="hi-name">${esc(p.name)}</div><div class="hi-date">Silindi: ${new Date(p.delAt).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})}</div></div>
       <div class="hi-amt">${fmtA(p.amount,p.currency||'TRY')}</div>
+      <button onclick="restoreFromHist(${i})" style="background:rgba(74,222,128,.15);color:var(--ok);border:1px solid rgba(74,222,128,.2);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">↩ Geri Al</button>
       <button class="hi-del" onclick="delHist(${i})">Sil</button>
     </div>`).join('');
 }
+function delMonthEntry(idEnc){
+  const id=decodeURIComponent(idEnc);
+  if(!confirm('Bu aya ait kayıt silinecek. Diğer aylar etkilenmez. Emin misin?'))return;
+  const p=pays.find(x=>String(x.id)===id);
+  if(p){hist.unshift({...p,delAt:new Date().toISOString()});pays=pays.filter(x=>String(x.id)!==id);}
+  saveSecure();closeDV();render();
+}
+
+function restoreFromHist(i){
+  const p=hist[i];
+  if(!p)return;
+  // Geri yükle
+  const restored={...p};
+  delete restored.delAt;
+  pays.push(restored);
+  hist.splice(i,1);
+  save().then(()=>{renderHist();render();});
+}
+
 function delHist(i){hist.splice(i,1);save().then(()=>renderHist());}
 function clrHist(){if(!confirm('Tüm geçmişi sil?'))return;hist=[];save().then(()=>renderHist());}
 
